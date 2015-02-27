@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.io import loadmat
 from math import sqrt
-
+from math import exp
 
 def initializeWeights(n_in,n_out):
     """
@@ -26,10 +26,12 @@ def sigmoid(z):
     
     """# Notice that z can be a scalar, a vector or a matrix
     # return the sigmoid of input z"""
-    
-    return  #your code here
-    
-    
+    output = np.zeros((z.shape[0], 1))
+    for i in range(z.shape[1]):
+        output[i][0] = 1 / (1 + exp(z[i][0]))
+    #your code here        
+    return  output
+
 
 def preprocess():
     """ Input:
@@ -136,11 +138,22 @@ def nnObjFunction(params, *args):
     
     w1 = params[0:n_hidden * (n_input + 1)].reshape( (n_hidden, (n_input + 1)))
     w2 = params[(n_hidden * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
+    #w1 = params[0:n_hidden * (n_input)].reshape( (n_hidden, (n_input)))
+    #w2 = params[(n_hidden * (n_input)):].reshape((n_class, (n_hidden)))
     obj_val = 0  
-    
-    aj = np.zeros((1,n_hidden))
+
+    tData = np.zeros((training_data.shape[0],training_data.shape[1]+1))
+    tData[:,:-1] = training_data;
+    tData[:,training_data.shape[1]-1:training_data.shape[1]] = training_label
+    aj = np.zeros((n_hidden, 1))
     for j in range(n_hidden):
-        aj[0][j] = w1[j] * training_data[0].T
+        aj[j][0] = np.dot(w1[j], tData[0])
+    zj = sigmoid(aj)
+    bl = np.zeros((n_class, 1))
+    for l in range(n_class):
+        bl[l][0] = np.dot(w2[l], zj)
+    ol = sigmoid(bl)
+    
     #Your code here
     #
     #
@@ -226,8 +239,8 @@ nn_params = minimize(nnObjFunction, initialWeights, jac=True, args=args,method='
 
 
 #Reshape nnParams from 1D vector into w1 and w2 matrices
-w1 = nn_params[0:n_hidden * (n_input + 1)].reshape( (n_hidden, (n_input + 1)))
-w2 = nn_params[(n_hidden * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
+w1 = nn_params.x[0:n_hidden * (n_input + 1)].reshape( (n_hidden, (n_input + 1)))
+w2 = nn_params.x[(n_hidden * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
 
 
 #Test the computed parameters
