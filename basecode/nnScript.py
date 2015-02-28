@@ -26,9 +26,9 @@ def sigmoid(z):
     
     """# Notice that z can be a scalar, a vector or a matrix
     # return the sigmoid of input z"""
-    output = np.zeros((z.shape[0], 1))
+    output = np.zeros((1,z.shape[1]))
     for i in range(z.shape[1]):
-        output[i][0] = 1 / (1 + exp(z[i][0]))
+        output[0][i] = 1 / (1 + exp(z[0][i]))
     #your code here        
     return  output
 
@@ -65,28 +65,42 @@ def preprocess():
     #Pick a reasonable size for validation data
     
     #Your code here
+    validation_size = 10
+
     train = mat.get('train0')
     train_data = np.zeros((1,train.shape[1]))
-    train_label = np.array([[0]])
+    train_label = np.zeros((1, 10))
     validation_data = np.zeros((1,train.shape[1]))
-    validation_label = np.array([[0]])
+    validation_label = np.zeros((1,10))
     test_data = np.zeros((1,train.shape[1]))
-    test_label = np.array([[0]])
+    test_label = np.zeros((1,10))
     
     for i in range(10):
         train = mat.get('train' + str(i))
         inputSize = range(train.shape[0])
+        inputSize = 100
         randomIndex = np.random.permutation(inputSize)
-        vData = train[randomIndex[0:1000],:]
-        tData = train[randomIndex[1000:],:]
+        vData = train[randomIndex[0:validation_size],:]
+        tData = train[randomIndex[validation_size:],:]
         validation_data = np.concatenate((validation_data,vData))
-        validation_label = np.concatenate((validation_label, np.zeros((1000,1)) + i))
+        true_label = np.zeros((validation_size,10))
+        true_label[:,i] = 1;
+        #validation_label = np.concatenate((validation_label, np.zeros((1000,1)) + i))
+        validation_label = np.concatenate((validation_label, true_label))
         train_data = np.concatenate((train_data,tData))
-        train_label = np.concatenate((train_label,np.zeros((train.shape[0]-1000, 1)) + i))
+        true_label = np.zeros((inputSize-validation_size, 10))
+        true_label[:,i] = 1
+        train_label = np.concatenate((train_label, true_label))
+        #train_label = np.concatenate((train_label,np.zeros((train.shape[0]-1000, 1)) + i))
         #
         test = mat.get('test' + str(i))
+        inputSizeTest = test.shape[0]
+        inputSizeTest = 100;
         test_data = np.concatenate((test_data,test))
-        test_label = np.concatenate((test_label, np.zeros((test.shape[0],1)) + i))
+        true_label = np.zeros((inputSizeTest, 10))
+        true_label[:,i] = 1
+        test_label = np.concatenate((test_label, true_label))
+        #test_label = np.concatenate((test_label, np.zeros((test.shape[0],1)) + i))
         
     validation_data = np.concatenate((validation_data,np.ones((validation_data.shape[0],1))),1)
     train_data = np.concatenate((train_data,np.ones((train_data.shape[0], 1))), 1)
@@ -136,24 +150,54 @@ def nnObjFunction(params, *args):
     
     n_input, n_hidden, n_class, training_data, training_label, lambdaval = args
     
-    w1 = params[0:n_hidden * (n_input + 1)].reshape( (n_hidden, (n_input + 1)))
-    w2 = params[(n_hidden * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
+    w1 = params[0:(n_hidden + 1) * (n_input + 1)].reshape((n_hidden+1, (n_input + 1)))
+    w2 = params[((n_hidden+1) * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
     #w1 = params[0:n_hidden * (n_input)].reshape( (n_hidden, (n_input)))
     #w2 = params[(n_hidden * (n_input)):].reshape((n_class, (n_hidden)))
     obj_val = 0  
-
+    sizeWithBias = training_data.shape[1] + 1
     tData = np.zeros((training_data.shape[0],training_data.shape[1]+1))
     tData[:,:-1] = training_data;
-    tData[:,training_data.shape[1]-1:training_data.shape[1]] = training_label
-    aj = np.zeros((n_hidden, 1))
-    for j in range(n_hidden):
-        aj[j][0] = np.dot(w1[j], tData[0])
-    zj = sigmoid(aj)
-    bl = np.zeros((n_class, 1))
-    for l in range(n_class):
-        bl[l][0] = np.dot(w2[l], zj)
-    ol = sigmoid(bl)
-    
+    tData[0:,training_data.shape[1]-1:training_data.shape[1]] = 0
+    tData[1:,training_data.shape[1]-1:training_data.shape[1]] = 1
+    aj = np.zeros((1, n_hidden+1))
+    #deltaL = np.zeros((1, 10))
+    grad_w1 = np.zeros((n_hidden+1,sizeWithBias));
+    grad_w2 = np.zeros((n_class, n_hidden+1))
+    for i in range(n_input):
+        for j in range(n_hidden+1):
+            aj[0][j] = np.dot(w1[j], tData[i])
+        zj = sigmoid(aj)
+        bl = np.zeros((1, n_class))
+        for l in range(n_class):
+            bl[0][l] = np.dot(w2[l], zj[0])
+        ol = sigmoid(bl)
+        deltaL = (ol - training_label[i])
+        ####################################################3
+        #Objective Function
+        # Sigma for all output yl(ln ol) + (1-yl) (ln (1-ol))        
+        
+        
+        
+        
+        ####################################################3
+        #Gradient descent for Hidden  Weights
+        ## (1 * classNode) * ((classNode) * hiddenNodes) == 1 * hiddenNodes
+        oneCrossW2 = deltaL * w2 
+        ## (1 * hiddenNodes) * (1 * hiddenNodes) * (1 * hiddenNodes) = 1 * hiddenNodes
+        oneCrossW2 = (1 - zj) * zj * oneCrossW2
+        ## (1 * hiddenNodes).T * (1 * inputNodes) == hiddenNodes * inputNodes
+        grad_w1 = grad_w1 + oneCrossW2.T * tData[i]
+        
+        #Gradient descent for Output Weights 
+        # (1 * classNode).T * (1 * hiddenNodes) == classNodes * hiddenNodes       
+        grad_w2 = grad_w2 + deltaL.T * zj
+        ####################################################3        
+    grad_w1 = grad_w1 / n_input
+    grad_w1[:,n_input] = 0
+    grad_w2 = grad_w2 / n_input
+    grad_w2[:,n_hidden] = 0
+    obj_grad = np.concatenate((grad_w1.flatten(), grad_w2.flatten()), 0)
     #Your code here
     #
     #
@@ -166,7 +210,7 @@ def nnObjFunction(params, *args):
     #Make sure you reshape the gradient matrices to a 1D array. for instance if your gradient matrices are grad_w1 and grad_w2
     #you would use code similar to the one below to create a flat array
     #obj_grad = np.concatenate((grad_w1.flatten(), grad_w2.flatten()),0)
-    obj_grad = np.array([])
+    #obj_grad = np.array([])
     
     return (obj_val,obj_grad)
 
@@ -215,7 +259,7 @@ n_hidden = 50;
 n_class = 10;				   
 
 # initialize the weights into some random matrices
-initial_w1 = initializeWeights(n_input, n_hidden);
+initial_w1 = initializeWeights(n_input, n_hidden+1);
 initial_w2 = initializeWeights(n_hidden, n_class);
 
 # unroll 2 weight matrices into single column vector
