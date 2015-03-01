@@ -3,6 +3,7 @@ from scipy.optimize import minimize
 from scipy.io import loadmat
 from math import sqrt
 from math import exp
+from math import log
 
 def initializeWeights(n_in,n_out):
     """
@@ -28,7 +29,7 @@ def sigmoid(z):
     # return the sigmoid of input z"""
     output = np.zeros((1,z.shape[1]))
     for i in range(z.shape[1]):
-        output[0][i] = 1 / (1 + exp(z[0][i]))
+        output[0][i] = 1 / (1 + exp(-1 * z[0][i]))
     #your code here        
     return  output
 
@@ -96,7 +97,7 @@ def preprocess():
         test = mat.get('test' + str(i))
         inputSizeTest = test.shape[0]
         inputSizeTest = 100;
-        test_data = np.concatenate((test_data,test))
+        test_data = np.concatenate((test_data,test[0:inputSizeTest,:]))
         true_label = np.zeros((inputSizeTest, 10))
         true_label[:,i] = 1
         test_label = np.concatenate((test_label, true_label))
@@ -176,14 +177,12 @@ def nnObjFunction(params, *args):
         ####################################################3
         #Objective Function
         # Sigma for all output yl(ln ol) + (1-yl) (ln (1-ol))        
-        
-        
-        
-        
-        ####################################################3
+        obj_val = obj_val + sum( sum (training_label[i] * np.log(ol) + 
+                    (1 - training_label[i]) * np.log(1-ol)))
+        ########################a############################3
         #Gradient descent for Hidden  Weights
         ## (1 * classNode) * ((classNode) * hiddenNodes) == 1 * hiddenNodes
-        oneCrossW2 = deltaL * w2 
+        oneCrossW2 = np.dot(deltaL, w2) 
         ## (1 * hiddenNodes) * (1 * hiddenNodes) * (1 * hiddenNodes) = 1 * hiddenNodes
         oneCrossW2 = (1 - zj) * zj * oneCrossW2
         ## (1 * hiddenNodes).T * (1 * inputNodes) == hiddenNodes * inputNodes
@@ -198,6 +197,7 @@ def nnObjFunction(params, *args):
     grad_w2 = grad_w2 / n_input
     grad_w2[:,n_hidden] = 0
     obj_grad = np.concatenate((grad_w1.flatten(), grad_w2.flatten()), 0)
+    obj_val = obj_val / n_input
     #Your code here
     #
     #
@@ -233,15 +233,31 @@ def nnPredict(w1,w2,data):
        
     % Output: 
     % label: a column vector of predicted labels""" 
+    n_hidden = w1.shape[0] - 1
+    n_class = w2.shape[0]
+    aj = np.zeros((1, n_hidden+1))
     
-    labels = np.array([])
+    tData = np.zeros((data.shape[0],data.shape[1]+1))
+    tData[:,:-1] = data;
+    tData[:,data.shape[1]-1:data.shape[1]] = 1
+    data = tData;
+    labels = np.zeros((data.shape[0],n_class))
+    for i in range(data.shape[0]):
+        for j in range(n_hidden):
+            aj[0][j] = np.dot(w1[j], data[i])
+        zj = sigmoid(aj)
+        bl = np.zeros((1, n_class))
+        for l in range(n_class):
+            bl[0][l] = np.dot(w2[l], zj[0])
+        ol = sigmoid(bl)
+        maxIndex = ol.argmax(axis=1)
+        ol[ol == ol[0,maxIndex]] = 1
+        ol[ol < ol[0,maxIndex]] = 0
+        labels[i] = ol
     #Your code here
     
     return labels
     
-
-
-
 """**************Neural Network Script Starts here********************************"""
 
 train_data, train_label, validation_data,validation_label, test_data, test_label = preprocess();
@@ -273,9 +289,9 @@ args = (n_input, n_hidden, n_class, train_data, train_label, lambdaval)
 
 #Train Neural Network using fmin_cg or minimize from scipy,optimize module. Check documentation for a working example
 
-opts = {'maxiter' : 50}    # Preferred value.
+opts = {'maxiter' : 50}    # Preferred value.50
 
-nn_params = minimize(nnObjFunction, initialWeights, jac=True, args=args,method='CG', options=opts)
+#nn_params = minimize(nnObjFunction, initialWeights, jac=True, args=args,method='CG', options=opts)
 
 #In Case you want to use fmin_cg, you may have to split the nnObjectFunction to two functions nnObjFunctionVal
 #and nnObjGradient. Check documentation for this function before you proceed.
@@ -283,10 +299,10 @@ nn_params = minimize(nnObjFunction, initialWeights, jac=True, args=args,method='
 
 
 #Reshape nnParams from 1D vector into w1 and w2 matrices
-w1 = nn_params.x[0:n_hidden * (n_input + 1)].reshape( (n_hidden, (n_input + 1)))
-w2 = nn_params.x[(n_hidden * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
-
-
+#w1 = nn_params.x[0:(n_hidden+1) * (n_input + 1)].reshape( (n_hidden+1, (n_input + 1)))
+#w2 = nn_params.x[((n_hidden+1) * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
+w1 = initial_w1
+w2 = initial_w2
 #Test the computed parameters
 
 predicted_label = nnPredict(w1,w2,train_data)
@@ -306,4 +322,4 @@ predicted_label = nnPredict(w1,w2,test_data)
 
 #find the accuracy on Validation Dataset
 
-print '\n Test set Accuracy:' + + str(100*np.mean((predicted_label == test_label).astype(float))) + '%'
+print '\n Test set Accuracy:' +  str(100*np.mean((predicted_label == test_label).astype(float))) + '%'
