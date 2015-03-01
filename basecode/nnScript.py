@@ -66,7 +66,7 @@ def preprocess():
     #Pick a reasonable size for validation data
     
     #Your code here
-    validation_size = 10
+    validation_size = 1000
 
     train = mat.get('train0')
     train_data = np.zeros((1,train.shape[1]))
@@ -79,7 +79,7 @@ def preprocess():
     for i in range(10):
         train = mat.get('train' + str(i))
         inputSize = range(train.shape[0])
-        inputSize = 100
+        inputSize = 5000
         randomIndex = np.random.permutation(inputSize)
         vData = train[randomIndex[0:validation_size],:]
         tData = train[randomIndex[validation_size:],:]
@@ -96,7 +96,7 @@ def preprocess():
         #
         test = mat.get('test' + str(i))
         inputSizeTest = test.shape[0]
-        inputSizeTest = 100;
+        #inputSizeTest = 5000
         test_data = np.concatenate((test_data,test[0:inputSizeTest,:]))
         true_label = np.zeros((inputSizeTest, 10))
         true_label[:,i] = 1
@@ -150,7 +150,7 @@ def nnObjFunction(params, *args):
     %     layer to unit i in output layer."""
     
     n_input, n_hidden, n_class, training_data, training_label, lambdaval = args
-    
+    print 'Printing....'
     w1 = params[0:(n_hidden + 1) * (n_input + 1)].reshape((n_hidden+1, (n_input + 1)))
     w2 = params[((n_hidden+1) * (n_input + 1)):].reshape((n_class, (n_hidden + 1)))
     #w1 = params[0:n_hidden * (n_input)].reshape( (n_hidden, (n_input)))
@@ -289,7 +289,7 @@ args = (n_input, n_hidden, n_class, train_data, train_label, lambdaval)
 
 #Train Neural Network using fmin_cg or minimize from scipy,optimize module. Check documentation for a working example
 
-opts = {'maxiter' : 50}    # Preferred value.50
+opts = {'maxiter' : 5}    # Preferred value.50
 
 #nn_params = minimize(nnObjFunction, initialWeights, jac=True, args=args,method='CG', options=opts)
 
@@ -319,7 +319,8 @@ print '\n Validation set Accuracy:' + str(100*np.mean((predicted_label == valida
 
 
 predicted_label = nnPredict(w1,w2,test_data)
-
+print predicted_label.shape
+print test_label.shape
 #find the accuracy on Validation Dataset
 
 print '\n Test set Accuracy:' +  str(100*np.mean((predicted_label == test_label).astype(float))) + '%'
